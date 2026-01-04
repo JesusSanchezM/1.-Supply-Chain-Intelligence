@@ -1,0 +1,17 @@
+# Entorno virtual
+venv/
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Datos pesados (No subir a GitHub)
+data/processed/*.csv
+data/processed/*.db
+*.db
+*.csv
+
+# Carpetas de IDE
+.vscode/
+.ipynb_checkpoints/
