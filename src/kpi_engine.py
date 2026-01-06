@@ -75,6 +75,28 @@ def get_top_products_by_quantity(n=10):
     return df
 
 
+def get_product_matrix_data(n=30):
+    """
+    Combines Revenue and Quantity metrics for top products to create
+    a strategic performance matrix.
+    """
+    conn = get_connection()
+    query = f"""
+    SELECT 
+        Description, 
+        SUM(Quantity * Price) AS TotalRevenue, 
+        SUM(Quantity) AS TotalQuantity
+    FROM transactions
+    WHERE StockCode NOT IN ('POST', 'D', 'M', 'BANK CHARGES', 'ADJUST', 'ADJUST2')
+    GROUP BY StockCode
+    ORDER BY TotalRevenue DESC
+    LIMIT {n};
+    """
+    df = pd.read_sql(query, conn)
+    conn.close()
+    return df
+
+
 # --- SECCIÓN 3: COMPORTAMIENTO GEOGRÁFICO Y CLIENTES ---
 
 
