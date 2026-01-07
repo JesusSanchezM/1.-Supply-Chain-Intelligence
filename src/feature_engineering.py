@@ -49,10 +49,8 @@ def calculate_rfm_metrics(df):
     Calculates Recency, Frequency, and Monetary metrics for each customer.
     Ensures 'TotalSum' is calculated if not present in the dataset.
     """
-    # 1. Ensure TotalSum (Revenue per line) exists
-    if "TotalSum" not in df.columns:
-        print("⏳ 'TotalSum' not found. Calculating Revenue (Quantity * Price)...")
-        df["TotalSum"] = df["Quantity"] * df["Price"]
+    # 1. Calculating Revenue as TotalSum
+    df["TotalSum"] = df["Quantity"] * df["Price"]
 
     # 2. Setup Reference Date (Snapshot date)
     # Using max date + 1 day to ensure Recency > 0
@@ -80,6 +78,36 @@ def calculate_rfm_metrics(df):
 
     print("✅ RFM Metrics calculated successfully.")
     return rfm
+
+
+# === AI-DRIVEN CLUSTERING MODULE ===
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+import numpy as np  # <--- MISSING IMPORT FIXED
+
+
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+
+
+def prepare_rfm_for_clustering(rfm_df):
+    """
+    Prepara los datos RFM aplicando transformación logarítmica y escalamiento.
+    """
+    # 1. Aplicamos Logaritmo para manejar el sesgo (skewness)
+    # Sumamos +1 para evitar log(0) si hubiera valores en cero
+    rfm_log = np.log1p(rfm_df[["Recency", "Frequency", "Monetary"]])
+
+    # 2. Escalamos los datos (Media 0, Desviación Estándar 1)
+    scaler = StandardScaler()
+    rfm_scaled = scaler.fit_transform(rfm_log)
+
+    # Convertimos de nuevo a DataFrame para facilitar el manejo
+    scaled_df = pd.DataFrame(
+        rfm_scaled, index=rfm_df.index, columns=["Recency", "Frequency", "Monetary"]
+    )
+
+    return scaled_df, scaler
 
 
 # === INVENTORY INTELLIGENCE: ABC ANALYSIS ===
