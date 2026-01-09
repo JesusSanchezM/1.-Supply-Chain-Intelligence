@@ -46,27 +46,28 @@ def add_time_features(df, date_col="InvoiceDate"):
 
 def calculate_rfm_metrics(df):
     """
-    Calculates Recency, Frequency, and Monetary metrics for each customer.
-    Ensures 'TotalSum' is calculated if not present in the dataset.
+    Calcula Recency, Frequency y Monetary por cliente.
+    Usa 'nunique' en la factura para evitar la inflación de frecuencia por artículos.
     """
-    # 1. Calculating Revenue as TotalSum
-    df["TotalSum"] = df["Quantity"] * df["Price"]
+    # 1. Asegurar cálculo de Revenue
+    if "TotalSum" not in df.columns:
+        df["TotalSum"] = df["Quantity"] * df["Price"]
 
-    # 2. Setup Reference Date (Snapshot date)
-    # Using max date + 1 day to ensure Recency > 0
+    # 2. Fecha de referencia (Snapshot)
+    # Al sumar 1 día evitamos Recency = 0, lo cual es mejor para modelos logarítmicos
     reference_date = df["InvoiceDate"].max() + pd.Timedelta(days=1)
 
-    # 3. Aggregate Data by Customer
-    # We use 'Customer ID' as the primary key
+    # 3. Agregación Estratégica
+    # Groupby por ID de Cliente para obtener una fila única por usuario
     rfm = df.groupby("Customer ID").agg(
         {
             "InvoiceDate": lambda x: (reference_date - x.max()).days,
-            "Invoice": "nunique",
+            "Invoice": "nunique",  # <--- Aquí está la clave de tu observación
             "TotalSum": "sum",
         }
     )
 
-    # 4. Rename columns for business clarity
+    # 4. Renombrar para claridad de negocio
     rfm.rename(
         columns={
             "InvoiceDate": "Recency",
@@ -76,7 +77,7 @@ def calculate_rfm_metrics(df):
         inplace=True,
     )
 
-    print("✅ RFM Metrics calculated successfully.")
+    print(f"✅ Métricas RFM calculadas para {len(rfm)} clientes únicos.")
     return rfm
 
 
