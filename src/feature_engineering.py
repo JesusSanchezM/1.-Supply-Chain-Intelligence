@@ -1,73 +1,61 @@
 # === IMPORTS ===
 import pandas as pd
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+
 
 # === TIME-BASED FEATURE ENGINEERING ===
-
-
 def add_time_features(df, date_col="InvoiceDate"):
     """
     Transforms the date column into categorical and numerical features
     to capture seasonality and consumption cycles.
     """
-    # Ensure datetime format
     df[date_col] = pd.to_datetime(df[date_col])
 
-    # --- Basic Seasonality ---
+    # Basic Seasonality
     df["Year"] = df[date_col].dt.year
     df["Month"] = df[date_col].dt.month
     df["Day"] = df[date_col].dt.day
     df["Hour"] = df[date_col].dt.hour
 
-    # --- Weekly Behavior ---
-    # 0 = Monday, 6 = Sunday
+    # Weekly Behavior
     df["DayOfWeek"] = df[date_col].dt.dayofweek
     df["DayName"] = df[date_col].dt.day_name()
     df["IsWeekend"] = df["DayOfWeek"].apply(lambda x: 1 if x >= 5 else 0)
 
-    # --- Economic/Payroll Cycles ---
-    # Captures liquidity impact at the start/end of the month
+    # Economic/Payroll Cycles
     df["IsMonthStart"] = df[date_col].dt.is_month_start.astype(int)
     df["IsMonthEnd"] = df[date_col].dt.is_month_end.astype(int)
 
-    # --- Operational Day Segments (Logistics) ---
-    # Helps in warehouse shift planning
+    # Operational Day Segments (Logistics)
     df["DayPart"] = pd.cut(
         df["Hour"],
         bins=[0, 6, 12, 18, 24],
         labels=["Early Morning", "Morning", "Afternoon", "Evening"],
         right=False,
     )
-
     return df
 
 
 # === RFM CALCULATION MODULE ===
-
-
 def calculate_rfm_metrics(df):
     """
-    Calcula Recency, Frequency y Monetary por cliente.
-    Usa 'nunique' en la factura para evitar la inflación de frecuencia por artículos.
+    Calculates Recency, Frequency, and Monetary metrics per customer.
+    Uses 'nunique' for Frequency to avoid per-item inflation.
     """
-    # 1. Asegurar cálculo de Revenue
     if "TotalSum" not in df.columns:
         df["TotalSum"] = df["Quantity"] * df["Price"]
 
-    # 2. Fecha de referencia (Snapshot)
-    # Al sumar 1 día evitamos Recency = 0, lo cual es mejor para modelos logarítmicos
     reference_date = df["InvoiceDate"].max() + pd.Timedelta(days=1)
 
-    # 3. Agregación Estratégica
-    # Groupby por ID de Cliente para obtener una fila única por usuario
     rfm = df.groupby("Customer ID").agg(
         {
             "InvoiceDate": lambda x: (reference_date - x.max()).days,
-            "Invoice": "nunique",  # <--- Aquí está la clave de tu observación
+            "Invoice": "nunique",
             "TotalSum": "sum",
         }
     )
 
-    # 4. Renombrar para claridad de negocio
     rfm.rename(
         columns={
             "InvoiceDate": "Recency",
@@ -77,51 +65,33 @@ def calculate_rfm_metrics(df):
         inplace=True,
     )
 
-    print(f"✅ Métricas RFM calculadas para {len(rfm)} clientes únicos.")
+    print(f"✅ RFM metrics calculated for {len(rfm)} unique customers.")
     return rfm
 
 
 # === AI-DRIVEN CLUSTERING MODULE ===
-from sklearn.preprocessing import StandardScaler
-from sklearn.cluster import KMeans
-import numpy as np  # <--- MISSING IMPORT FIXED
-
-
-import numpy as np
-from sklearn.preprocessing import StandardScaler
-
-
 def prepare_rfm_for_clustering(rfm_df):
     """
-    Prepara los datos RFM aplicando transformación logarítmica y escalamiento.
+    Applies Log Transformation and Standard Scaling to RFM data.
     """
-    # 1. Aplicamos Logaritmo para manejar el sesgo (skewness)
-    # Sumamos +1 para evitar log(0) si hubiera valores en cero
+    # Log transform to handle skewness
     rfm_log = np.log1p(rfm_df[["Recency", "Frequency", "Monetary"]])
 
-    # 2. Escalamos los datos (Media 0, Desviación Estándar 1)
+    # Standard Scaling
     scaler = StandardScaler()
     rfm_scaled = scaler.fit_transform(rfm_log)
 
-    # Convertimos de nuevo a DataFrame para facilitar el manejo
     scaled_df = pd.DataFrame(
         rfm_scaled, index=rfm_df.index, columns=["Recency", "Frequency", "Monetary"]
     )
-
     return scaled_df, scaler
 
 
 # === INVENTORY INTELLIGENCE: ABC ANALYSIS ===
-
-
 def perform_abc_analysis(df):
     """
-    Categorizes products based on their revenue contribution (Pareto Principle).
-    - Class A: Top 80% of revenue (High priority)
-    - Class B: Next 15% of revenue (Medium priority)
-    - Class C: Remaining 5% of revenue (Low priority/Tail)
+    Categorizes products (SKUs) based on revenue contribution (Pareto 80/20).
     """
-    # 1. Calculate Revenue per Product
     if "TotalSum" not in df.columns:
         df["TotalSum"] = df["Quantity"] * df["Price"]
 
@@ -131,13 +101,10 @@ def perform_abc_analysis(df):
         .sort_values(ascending=False)
         .reset_index()
     )
-
-    # 2. Calculate Cumulative Percentages
     abc_df["CumulativeRevenue"] = abc_df["TotalSum"].cumsum()
     total_revenue = abc_df["TotalSum"].sum()
     abc_df["Revenue_Share_Pct"] = (abc_df["CumulativeRevenue"] / total_revenue) * 100
 
-    # 3. Assign ABC Classes
     def classify_abc(percentage):
         if percentage <= 80:
             return "A"
@@ -147,65 +114,22 @@ def perform_abc_analysis(df):
             return "C"
 
     abc_df["ABC_Class"] = abc_df["Revenue_Share_Pct"].apply(classify_abc)
-
-    print("✅ ABC Analysis calculation complete.")
+    print("✅ ABC Analysis complete.")
     return abc_df
 
 
-# === BEHAVIORAL CORRELATION MODULE ===
-
-
-def analyze_cancellation_correlation(rfm_df, cancellations_df):
-    """
-    Merges RFM segments with cancellation counts per customer.
-    Uses targeted fillna to avoid Categorical type conflicts in scores.
-    """
-    # 1. Aggregate cancellations per customer
-    canc_counts = (
-        cancellations_df.groupby("Customer ID")
-        .size()
-        .reset_index(name="CancellationCount")
-    )
-
-    # 2. Prepare RFM for merging (ensure Customer ID is a column, not index)
-    if rfm_df.index.name == "Customer ID":
-        rfm_df = rfm_df.reset_index()
-
-    # 3. Merge data
-    correlation_df = pd.merge(rfm_df, canc_counts, on="Customer ID", how="left")
-
-    # 4. Targeted Fillna: Only fill the numeric column to avoid categorical errors
-    correlation_df["CancellationCount"] = correlation_df["CancellationCount"].fillna(0)
-
-    print("✅ Cancellation correlation data merged without categorical conflicts.")
-    return correlation_df
-
-
+# === OPTIONAL: PRICE ELASTICITY ===
 def calculate_price_elasticity(df):
-    """
-    Calculates basic price elasticity per SKU.
-    Formula: % Change in Quantity / % Change in Price.
-    """
-    # Group by product and price to see volume variations
     elasticity_data = (
         df.groupby(["Description", "Price"])["Quantity"].sum().reset_index()
     )
-
-    # Calculate percentage changes per group
     elasticity_data["Pct_Change_Q"] = elasticity_data.groupby("Description")[
         "Quantity"
     ].pct_change()
     elasticity_data["Pct_Change_P"] = elasticity_data.groupby("Description")[
         "Price"
     ].pct_change()
-
-    # Calculate Elasticity (avoiding division by zero)
     elasticity_data["Elasticity"] = (
         elasticity_data["Pct_Change_Q"] / elasticity_data["Pct_Change_P"]
     )
-
-    # Filter for valid values
-    final_elasticity = elasticity_data.dropna(subset=["Elasticity"])
-
-    print("✅ Price elasticity metrics calculated.")
-    return final_elasticity
+    return elasticity_data.dropna(subset=["Elasticity"])
