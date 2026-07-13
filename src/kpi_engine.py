@@ -1,10 +1,12 @@
 # === IMPORTS ===
 import sqlite3
 import pandas as pd
+from pathlib import Path
 
 # === GLOBAL CONFIGURATION ===
-DATABASE_PATH = r"C:\Users\Jesus Sanchez\Desktop\ALEXIS\1. Pre-Trabajo\1. Supply Chain Intelligence\data\processed\retail_vault.db"
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATABASE_PATH = PROJECT_ROOT / "data" / "processed" / "retail_vault.db"
 
 def get_connection():
     """Establishes a connection to the SQLite database."""
@@ -243,3 +245,6 @@ def get_top_cancelled_products(n=10):
     connection.close()
     print("⚠️ High-risk SKU identification complete.")
     return top_cancelled_df
+
+
+print("ok")

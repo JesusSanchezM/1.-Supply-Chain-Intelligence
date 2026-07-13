@@ -133,3 +133,6 @@ def calculate_price_elasticity(df):
         elasticity_data["Pct_Change_Q"] / elasticity_data["Pct_Change_P"]
     )
     return elasticity_data.dropna(subset=["Elasticity"])
+
+
+print("ok")
