@@ -25,10 +25,10 @@ This repository is designed as a **portfolio-ready project**, showcasing analyti
 - **Donated:** November 5, 2015
 - **Scope:** 541,909 transactions, 5,797 unique customers, 4,314 SKUs.
 - **Period:** December 1, 2010 – December 9, 2011.
-- **Business context:** UK-based non-store online retail selling unique all-occasion gifts. Many customers are wholesalers.[reference:0]
-- **Key fields:** InvoiceNo, StockCode, Description, Quantity, InvoiceDate, UnitPrice, CustomerID, Country.[reference:1]
-- **Missing values:** No missing values in the dataset.[reference:2]
-- **Introductory paper:** Chen, D., Sain, S.L., & Guo, K. (2012). *Data mining for the online retail industry: A case study of RFM model-based customer segmentation using data mining*. Journal of Database Marketing and Customer Strategy Management, Vol. 19, No. 3.[reference:3]
+- **Business context:** UK-based non-store online retail selling unique all-occasion gifts. Many customers are wholesalers. 
+- **Key fields:** InvoiceNo, StockCode, Description, Quantity, InvoiceDate, UnitPrice, CustomerID, Country.
+- **Missing values:** No missing values in the dataset.
+- **Introductory paper:** Chen, D., Sain, S.L., & Guo, K. (2012). *Data mining for the online retail industry: A case study of RFM model-based customer segmentation using data mining*. Journal of Database Marketing and Customer Strategy Management, Vol. 19, No. 3.
 
 ## 🛠️ Technologies Used
 
